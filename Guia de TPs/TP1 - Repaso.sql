@@ -36,9 +36,10 @@ create table ddbba.Localidad (
 );
 go
 
+
 create table ddbba.Persona (
 	ID int identity,
-	DNI int not null,
+	DNI bigint not null,
 	nombre nvarchar(100) not null,
 	apellido nvarchar(100) not null,
 	telefono int not null,
@@ -49,7 +50,7 @@ create table ddbba.Persona (
 	constraint uq_dni unique (DNI),
 	constraint fk_localidad foreign key (id_localidad) references ddbba.Localidad (ID),
 	constraint ck_telefono check ( 
-		telefono LIKE '[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]'
+		telefono between 1000000000 and 9999999999
 	), -- 1O NUMEROS - 12-3456-7890
 	constraint ck_patente check (
 		patenteVehiculo LIKE '[A-Z][A-Z][0-9][0-9][0-9][A-Z][A-Z]' OR -- auto patente nueva
@@ -178,6 +179,33 @@ select * from ddbba.Persona;
 	admitir un parámetro para indicar la cantidad de registros a generar
 */
 
+-- inserto valores para Materia
+insert into ddbba.Materia (nombre) values
+('Paradigmas de Programación'),
+('Análisis de Sistemas'),
+('Bases de Datos Aplicadas'),
+('Arquitectura de Computadoras'),
+('Introducción a la Gestión de Requisitos');
+
+-- inserto valores para Curso
+insert into ddbba.Curso (nroComision, id_materia) values
+(1234, 1),
+(1234, 2),
+(1234, 3),
+(1234, 4),
+(1234, 5),
+(4321, 1),
+(4321, 2),
+(4321, 3),
+(4321, 4),
+(4444, 1),
+(3333, 3),
+(2222, 2),
+(5555, 5),
+(1768, 4),
+(3232, 2);
+
+
 -- creo tabla auxiliar de nombres
 create table ddbba.Nombres (
 	id int identity(1,1) primary key,
@@ -195,40 +223,194 @@ insert into ddbba.Nombres (nombre) values ('Anastasio')
 insert into ddbba.Nombres (nombre) values ('Lucas')
 insert into ddbba.Nombres (nombre) values ('Diego')
 insert into ddbba.Nombres (nombre) values ('Franco')
--- creao tabla auxiliar de apellidos
 
--- inserto valores
+-- creao tabla auxiliar de apellidos
+create table ddbba.Apellidos (
+	id int identity(1,1) primary key,
+	apellido nvarchar(30),
+)
+go
+--inserto valores
+insert into ddbba.Apellidos(apellido) values ('Felice')
+insert into ddbba.Apellidos(apellido) values ('Dagrosa')
+insert into ddbba.Apellidos(apellido) values ('Rodriguez')
+insert into ddbba.Apellidos(apellido) values ('Gonzalez')
+insert into ddbba.Apellidos(apellido) values ('Fernandez')
+insert into ddbba.Apellidos(apellido) values ('Messi')
+insert into ddbba.Apellidos(apellido) values ('Ronaldo')
+insert into ddbba.Apellidos(apellido) values ('Martinez')
+insert into ddbba.Apellidos(apellido) values ('Simpson')
+insert into ddbba.Apellidos(apellido) values ('Argento')
+
+-- creo tabla auxiliar de patentes
+create table ddbba.Patentes (
+	id int identity(1,1) primary key,
+	patente varchar(7) check (
+		patente LIKE '[A-Z][A-Z][0-9][0-9][0-9][A-Z][A-Z]' OR -- auto patente nueva
+		patente LIKE '[A-Z][A-Z][A-Z][0-9][0-9][0-9]' OR -- auto patente vieja
+		patente LIKE '[A-Z][0-9][0-9][0-9][A-Z][A-Z][A-Z]' OR -- moto patente nueva
+		patente LIKE '[0-9][0-9][0-9][A-Z][A-Z][A-Z]' -- moto patente vieja
+	)
+)
+
+insert into ddbba.Patentes (patente) values
+('EPE928'),
+('AA123AA'),
+('AB123CD'),
+('AF432GH'),
+('ABC123'),
+('BCA321'),
+('TE405AS');
 
 -- creo proc para insertar personas
-create or alter procedure ddbba.insertarPersonas ( @cantidad int )
+create or alter procedure ddbba.insertarAlumnos (@cantidad int)
 as
 begin
+	-- Declaro variables
 	declare @contador int
-		,	@ AS date
-		,	@FechaFin AS date
-		,	@DiasIntervalo As int;
+		,	@DNI bigint
+		,	@FechaBase AS date
+		,	@LimiteInferiorTelefono as bigint
+		,	@LimiteSuperiorTelefono as bigint
+		,	@MaxIDLocalidad as int
+		,	@MaxIDNombre as int
+		,	@MaxIDApellido as int
+		,	@MaxIDPatente as int
+		,	@Nombre as varchar(30)
+		,	@Apellido as varchar(30)
+		,	@IDLocalidad as int
+		,	@FechaNacimiento as date
+		,	@Patente as varchar(7)
+		,	@MaxIDPersona as int
+		,	@MaxIDCurso as int
+		,	@Curso as int;
+
 	-- Inicializo valores y limites
-	SELECT	@FechaInicio	= '20230101',
-			@FechaFin		= '20230731',
-			@DiasIntervalo	= (1 + DATEDIFF(DAY, @FechaInicio, @FechaFin)),
-			@contador = 0
-	while @contador < 1000
+	SELECT	@FechaBase					= '20060411',
+			@LimiteInferiorTelefono		= 1000000000,
+			@LimiteSuperiorTelefono		= 9999999999,
+			@MaxIDLocalidad				= (select top 1 max(L.ID) from ddbba.Localidad L),
+			@MaxIDNombre				= (select top 1 max(n.id) from ddbba.Nombres n),
+			@MaxIDApellido				= (select top 1 max(a.id) from ddbba.Apellidos a),
+			@MaxIDPatente				= (select top 1 max(p.id) from ddbba.Patentes p),
+			@MaxIDCurso					= (select top 1 max(c.id) from ddbba.Curso c),
+			@contador					= 0;
+
+	-- Iniciar loop
+	while @contador < @cantidad
 	begin
-		insert ddbba.Persona(fecha, ciudad, monto)
-			select DATEADD(DAY, RAND(CHECKSUM(NEWID())) * @DiasIntervalo, @FechaInicio),
-				case CAST(RAND() * (5-1) + 1 as int)
-					when 1 then 'Buenos Aires'
-					when 1 then 'Rosario'
-					when 1 then 'Bariloche'
-					when 1 then 'Claromeco'
-					else		'Iguazu'
-					end,
-					CAST(RAND() * (2000-100) + 100 as int)
-		set @contador = @contador + 1
+		-- Inicializo variables de persona especifica
+		set		@contador			= @contador + 1;
+		set		@DNI				= @contador;
+		select	@Nombre				= (select top 1 nombre from ddbba.Nombres where id = cast(rand() * @MaxIDNombre + 1 AS int)),
+				@Apellido			= (select top 1 apellido from ddbba.Apellidos where id = cast(rand() * @MaxIDApellido + 1 AS int)),
+				@IDLocalidad		= cast(rand() * @MaxIDLocalidad + 1 AS int),
+				@FechaNacimiento	= cast(DATEADD(DAY, RAND(CHECKSUM(NEWID())), @FechaBase) as date),
+				@Patente			= (select top 1 patente from ddbba.Patentes where id = cast(rand() * @MaxIDPatente + 1 AS int)),
+				@Curso				= cast(rand() * @MaxIDCurso + 1 AS int);
+
+		-- Inserto personas
+		insert ddbba.Persona(DNI,nombre,apellido,telefono,id_localidad,fechaNacimiento,patenteVehiculo)
+			select	@DNI,
+					@Nombre,
+					@Apellido,
+					cast(rand() * (@LimiteSuperiorTelefono - @LimiteInferiorTelefono) + @LimiteInferiorTelefono as bigint),
+					@IDLocalidad,
+					@FechaNacimiento,
+					@Patente;
+		
+		-- Me guardo el ID de la persona creada
+		select	@MaxIDPersona	= (select max(id) from ddbba.Persona);
+
+		-- Hago alumno a la persona creada
+		insert into ddbba.PersonaCurso (id_persona, id_curso, esDocente)
+			select	@MaxIDPersona,
+					@Curso,
+					0;
+
 		print 'Generando el reg nro '+ CAST(@contador as varchar)
 	end
-end
+end;
+go
 
--- inserto cursos y materias
+-- 8. Utilizando el SP creado en el punto anterior, genere 1000 registros de alumnos.
 
---creo proc de la consigna
+declare @cantidad as int;
+set @cantidad = 1000;
+
+exec ddbba.insertarAlumnos @cantidad;
+
+-- 9. Elimine los registros duplicados utilizando common table expressions.
+WITH CTE(nombre, apellido, telefono,id_localidad,fechaNacimiento,patenteVehiculo, duplicadas) as
+	(select nombre, apellido, telefono,id_localidad,fechaNacimiento,patenteVehiculo,
+	ROW_NUMBER() over(partition by nombre, apellido, telefono,id_localidad,fechaNacimiento,patenteVehiculo order by id) as duplicadas
+	from ddbba.Persona)
+delete * from CTE where duplicadas > 1
+
+/*
+12. Cree una vista empleando la opción “SCHEMABINDING” para visualizar las 
+comisiones (nro de comisión, código de materia, nombre de materia, apellido y 
+nombre de los alumnos). El apellido y nombre debe mostrarse con el formato 
+“Apellido, Nombres” (observe la coma intermedia).
+a. Verifique qué ocurre si intenta modificar el tamaño de uno de los campos de 
+texto de la tabla de alumnos. 
+b. Verifique qué ocurre si intenta agregar un campo a la tabla de alumno.
+c. Verifique qué ocurre si intenta agregar un campo que admita nulos a la tabla 
+de alumno. ¿Hay diferencia entre agregarlo si la tabla está vacía o tiene 
+registros?
+d. ¿Puede usar SCHEMABINDING con una vista del tipo “Select * From..”?
+*/
+
+create or alter view ddbba.comisiones
+with schemabinding
+as
+	select distinct m.ID codigoMateria, m.nombre, c.nroComision, p.apellido + ', ' + p.nombre nombreYApellido
+	from ddbba.Curso c
+	inner join ddbba.Materia m on c.id_materia = m.ID
+	inner join ddbba.PersonaCurso pc on c.ID = pc.id_curso
+	inner join ddbba.Persona p on pc.id_persona = p.ID
+
+select * from ddbba.comisiones order by codigoMateria, nroComision
+
+-- a. Verifique qué ocurre si intenta modificar el tamaño de uno de los campos de 
+-- texto de la tabla de alumnos. 
+alter table ddbba.Persona
+alter column nombre varchar(135)
+/*
+	Msg 5074, Level 16, State 1, Line 377
+	The object 'comisiones' is dependent on column 'nombre'.
+	Msg 4922, Level 16, State 9, Line 377
+	ALTER TABLE ALTER COLUMN nombre failed because one or more objects access this column.
+*/
+
+-- b. Verifique qué ocurre si intenta agregar un campo a la tabla de alumno.
+alter table ddbba.PersonaCurso
+add nuevoCampo int
+
+alter table ddbba.PersonaCurso
+drop column nuevoCampo
+-- Lo reaiza sin problemas
+alter table ddbba.Persona
+add nuevoCampo int
+
+alter table ddbba.Persona
+drop column nuevoCampo
+-- Lo realiza sin problemas
+
+-- c. Verifique qué ocurre si intenta agregar un campo que admita nulos a la tabla 
+-- de alumno. ¿Hay diferencia entre agregarlo si la tabla está vacía o tiene 
+-- registros?
+-- Lo voy a intentar ahora para que no acepte nulos
+alter table ddbba.PersonaCurso
+add nuevoCampo int not null
+
+-- ALTER TABLE only allows columns to be added that can contain nulls,
+--	or have a DEFAULT definition specified, or the column being added is an identity or timestamp column,
+--	or alternatively if none of the previous conditions are satisfied the table must be empty to allow addition of this column.
+--	Column 'nuevoCampo' cannot be added to non-empty table 'PersonaCurso' because it does not satisfy these conditions.
+alter table ddbba.Persona
+add nuevoCampo int not null
+
+alter table ddbba.Persona
+drop column nuevoCampo
+-- Lo realiza sin problemas

@@ -1,5 +1,12 @@
-USE GRUPO_12;
+create database tomi;
 go
+
+use tomi;
+go
+
+create schema ddbba;
+go
+
 -- 3
 create table ddbba.Registro (
 	ID int identity(1,1),
@@ -50,7 +57,7 @@ create table ddbba.Persona (
 	constraint uq_dni unique (DNI),
 	constraint fk_localidad foreign key (id_localidad) references ddbba.Localidad (ID),
 	constraint ck_telefono check ( 
-		telefono between 1000000000 and 9999999999
+		telefono >= 1000000000 and telefono <= 9999999999
 	), -- 1O NUMEROS - 12-3456-7890
 	constraint ck_patente check (
 		patenteVehiculo LIKE '[A-Z][A-Z][0-9][0-9][0-9][A-Z][A-Z]' OR -- auto patente nueva
@@ -186,7 +193,7 @@ insert into ddbba.Materia (nombre) values
 ('Bases de Datos Aplicadas'),
 ('Arquitectura de Computadoras'),
 ('Introducción a la Gestión de Requisitos');
-
+go
 -- inserto valores para Curso
 insert into ddbba.Curso (nroComision, id_materia) values
 (1234, 1),
@@ -204,7 +211,7 @@ insert into ddbba.Curso (nroComision, id_materia) values
 (5555, 5),
 (1768, 4),
 (3232, 2);
-
+go
 
 -- creo tabla auxiliar de nombres
 create table ddbba.Nombres (
@@ -223,7 +230,7 @@ insert into ddbba.Nombres (nombre) values ('Anastasio')
 insert into ddbba.Nombres (nombre) values ('Lucas')
 insert into ddbba.Nombres (nombre) values ('Diego')
 insert into ddbba.Nombres (nombre) values ('Franco')
-
+go
 -- creao tabla auxiliar de apellidos
 create table ddbba.Apellidos (
 	id int identity(1,1) primary key,
@@ -241,6 +248,7 @@ insert into ddbba.Apellidos(apellido) values ('Ronaldo')
 insert into ddbba.Apellidos(apellido) values ('Martinez')
 insert into ddbba.Apellidos(apellido) values ('Simpson')
 insert into ddbba.Apellidos(apellido) values ('Argento')
+go
 
 -- creo tabla auxiliar de patentes
 create table ddbba.Patentes (
@@ -252,6 +260,7 @@ create table ddbba.Patentes (
 		patente LIKE '[0-9][0-9][0-9][A-Z][A-Z][A-Z]' -- moto patente vieja
 	)
 )
+go
 
 insert into ddbba.Patentes (patente) values
 ('EPE928'),
@@ -261,6 +270,7 @@ insert into ddbba.Patentes (patente) values
 ('ABC123'),
 ('BCA321'),
 ('TE405AS');
+go
 
 -- creo proc para insertar personas
 create or alter procedure ddbba.insertarAlumnos (@cantidad int)
@@ -314,7 +324,7 @@ begin
 			select	@DNI,
 					@Nombre,
 					@Apellido,
-					cast(rand() * (@LimiteSuperiorTelefono - @LimiteInferiorTelefono) + @LimiteInferiorTelefono as bigint),
+					cast(((rand() * (@LimiteSuperiorTelefono - @LimiteInferiorTelefono)) + @LimiteInferiorTelefono) as bigint),
 					@IDLocalidad,
 					@FechaNacimiento,
 					@Patente;
@@ -345,7 +355,7 @@ WITH CTE(nombre, apellido, telefono,id_localidad,fechaNacimiento,patenteVehiculo
 	(select nombre, apellido, telefono,id_localidad,fechaNacimiento,patenteVehiculo,
 	ROW_NUMBER() over(partition by nombre, apellido, telefono,id_localidad,fechaNacimiento,patenteVehiculo order by id) as duplicadas
 	from ddbba.Persona)
-delete * from CTE where duplicadas > 1
+delete from CTE where duplicadas > 1
 
 /*
 12. Cree una vista empleando la opción “SCHEMABINDING” para visualizar las 
@@ -369,6 +379,7 @@ as
 	inner join ddbba.Materia m on c.id_materia = m.ID
 	inner join ddbba.PersonaCurso pc on c.ID = pc.id_curso
 	inner join ddbba.Persona p on pc.id_persona = p.ID
+go
 
 select * from ddbba.comisiones order by codigoMateria, nroComision
 
@@ -414,3 +425,194 @@ add nuevoCampo int not null
 alter table ddbba.Persona
 drop column nuevoCampo
 -- Lo realiza sin problemas
+
+-- d. ¿Puede usar SCHEMABINDING con una vista del tipo “Select * From..”?
+ -- Probemos..
+create or alter view ddbba.comisiones2
+with schemabinding
+as
+	select *
+	from ddbba.Curso c
+	inner join ddbba.Materia m on c.id_materia = m.ID
+	inner join ddbba.PersonaCurso pc on c.ID = pc.id_curso
+	inner join ddbba.Persona p on pc.id_persona = p.ID
+
+-- Comprobamos que no esta permitido
+-- Syntax '*' is not allowed in schema-bound objects.
+-- Esto se da para garantizar la integridad de los datos
+
+-- 13. Agregue a la tabla de comisión soporte para día y turno de cursada. (Modifique la 
+-- tabla). Los números de comisión son únicos para cada cuatrimestre.
+
+create table ddbba.comisionesTable (
+	nro char(4),
+	dia nvarchar(10),
+	turno nvarchar(10),
+	constraint pk_comisiones primary key clustered (nro),
+	constraint ck_comisiones check (nro LIKE '[1-6][369]00'),
+	constraint ck_dia check (dia in ('Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado')),
+	constraint ck_turno check (turno in ('Mañana', 'Tarde', 'Noche'))
+);
+go
+
+insert into ddbba.comisionesTable (nro, dia, turno)
+values
+('1300', 'Lunes', 'Mañana'),
+('1600', 'Lunes', 'Tarde'),
+('1900', 'Lunes', 'Noche'),
+('2300', 'Martes', 'Mañana'),
+('2600', 'Martes', 'Tarde'),
+('2900', 'Martes', 'Noche'),
+('3300', 'Miércoles', 'Mañana'),
+('3600', 'Miércoles', 'Tarde'),
+('3900', 'Miércoles', 'Noche'),
+('4300', 'Jueves', 'Mañana'),
+('4600', 'Jueves', 'Tarde'),
+('4900', 'Jueves', 'Noche'),
+('5300', 'Viernes', 'Mañana'),
+('5600', 'Viernes', 'Tarde'),
+('5900', 'Viernes', 'Noche'),
+('6300', 'Sábado', 'Mañana'),
+('6600', 'Sábado', 'Tarde')
+go
+
+alter table ddbba.curso
+add dia nvarchar(10),
+	turno nvarchar(10),
+	cuatrimestre int,
+	constraint ck_cuatrimestre check (cuatrimestre >= 1 and cuatrimestre <= 3)
+go
+
+create or alter trigger tg_comision on ddbba.curso
+after insert, update as
+begin
+	declare @id int;
+	declare @idMateria int;
+	declare @nroComision int;
+	declare @dia nvarchar(10);
+	declare @turno nvarchar(10);
+	declare @cuatrimestre int;
+
+	SELECT @id = i.ID,
+           @idMateria = i.id_materia,
+		   @nroComision = i.nroComision,
+		   @dia = i.dia,
+		   @turno = i.turno,
+		   @cuatrimestre = i.cuatrimestre
+    FROM inserted i;
+
+	if not exists(
+		select 1 from ddbba.curso c
+		inner join inserted i on c.ID = i.ID
+		where c.dia = i.dia and c.turno = i.turno and c.cuatrimestre = i.cuatrimestre
+	)
+		insert into ddbba.Curso (ID, id_materia, nroComision, dia, turno, cuatrimestre)
+		values
+		(@id, @idMateria, @nroComision, @dia, @turno, @turno);
+
+end
+go
+
+-- 14. Complete los datos de día y curso con valores aleatorios
+update ddbba.Curso
+set dia = (select top 1 dia from ddbba.comisionesTable cs where cs.nro = nroComision),
+	turno = (select top 1 turno from ddbba.comisionesTable cs where cs.nro = nroComision),
+	cuatrimestre = (cast(rand() * 4 as int))
+go
+
+--15. Genere una función validaCursada que devuelva la cantidad de materias 
+--	superpuestas a las que está inscripto un alumno, recibiendo el DNI por parámetro.
+
+create or alter function ddbba.validaCursada (@DNI bigint)
+returns int
+begin
+	declare @cantidadSuperpuestas as int;
+
+	set @cantidadSuperpuestas = (
+		select count(1) from ddbba.Persona p
+		inner join ddbba.PersonaCurso pc on p.ID = pc.id_persona
+		inner join ddbba.Curso c on pc.id_curso = c.ID
+		where p.DNI = @DNI AND (
+			select count(1) from ddbba.PersonaCurso pc2
+			inner join ddbba.Curso c2 on pc2.id_curso = c2.ID
+			where pc2.id_persona = PC.id_persona and c2.nroComision = c.nroComision
+		) > 1
+	);
+
+	return @cantidadSuperpuestas;
+end
+go
+
+-- 16. Cree una vista que utilice la función del punto anterior y muestre los alumnos con 
+-- superposición de inscripciones.
+create or alter view ddbba.alumnosConSuperposicion
+as
+	select p.ID, p.DNI, concat(concat(p.apellido, ', '), p.nombre) apellido_nombre
+	from ddbba.Persona p
+	where ddbba.validaCursada(p.DNI) > 1
+
+-- 17. Cree un SP que elimine las inscripciones superpuestas o duplicadas.
+create or alter proc ddbba.eliminasInsripcionesSuperpuestas
+as
+begin
+	delete pc from ddbba.PersonaCurso pc
+	where exists (
+		select 1 from ddbba.alumnosConSuperposicion acs
+		where acs.ID = pc.id_persona
+	)
+end
+go
+
+exec ddbba.eliminasInsripcionesSuperpuestas
+go
+
+select * from ddbba.alumnosConSuperposicion
+go
+
+-- 18. Cree una vista que presente una vista PIVOT de cantidad de inscripciones para las 
+-- materias por cada turno. Utilice su criterio para presentarlo de la manera que 
+-- considere más clara.
+create or alter view ddbba.inscripcionesMateriaTurno
+as
+	with InscripcionesPorTurno (Materia, Turno, Cantidad) as (
+		select m.nombre Materia, c.turno Turno, count(m.ID) Cantidad from ddbba.Materia m
+		inner join ddbba.Curso c on m.ID = c.id_materia
+		inner join ddbba.PersonaCurso pc on c.ID = pc.id_curso
+		group by m.nombre, c.turno
+	) -- fin CTE
+	select Materia, isnull(Mañana, 0) Mañana, isnull(Tarde, 0) Tarde, isnull(Noche, 0) Noche
+	from InscripcionesPorTurno
+	pivot( sum(Cantidad) for
+		Turno in ([Mañana], [Tarde], [Noche])
+	) Pivoteado
+
+go
+
+select * from ddbba.inscripcionesMateriaTurno
+
+-- 19. Utilizando Window Functions cree una vista que muestre los alumnos inscritos a una 
+-- materia y en una columna también muestre la cantidad total de materias a las que se 
+-- ha inscrito ese alumno (en un mismo cuatrimestre).
+
+create or alter view ddbba.alumnos_inscriptos_materia
+as
+	select	p.ID, p.DNI, concat(p.apellido, ', ', p.nombre) nombre_apellido, m.nombre materia, c.cuatrimestre,
+			count(m.id) over (partition by p.ID, c.cuatrimestre) cantidad_materias_alumno_cuatrimestre
+	from ddbba.Persona p
+	inner join ddbba.PersonaCurso pc on p.ID = pc.id_persona and pc.esDocente = 0
+	inner join ddbba.Curso c on pc.id_curso = c.ID
+	inner join ddbba.Materia m on c.id_materia = m.ID
+go
+
+select * from ddbba.alumnos_inscriptos_materia order by ID, cuatrimestre
+
+-- 20. Utilizando Window Functions presente el 5% más joven y el 5% menos joven del 
+-- alumnado.
+
+select	p.ID, p.DNI, CONCAT(p.apellido, ', ', p.nombre) nombreYApellido, p.fechaNacimiento,
+		percent_rank() over (partition by p.dni order by p.fechaNacimiento) masJovenes,
+		percent_rank() over (partition by p.dni order by p.fechaNacimiento) menosJovenes
+from ddbba.Persona p
+inner join ddbba.PersonaCurso pc on p.ID = pc.id_persona and pc.esDocente = 0
+
+select * from ddbba.Persona

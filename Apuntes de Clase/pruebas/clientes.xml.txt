@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Clientes>
+  <Cliente>
+    <Documento>300 000 000</Documento>
+    <Nombre>Ponzio</Nombre>
+    <Direccion>Belgrano 2011</Direccion>
+    <Ocupacion>Sufridor</Ocupacion>
+  </Cliente>
+  <Cliente>
+    <Documento>300 000 001</Documento>
+    <Nombre>JJ Lopez</Nombre>
+    <Direccion>Belgrano 0626</Direccion>
+    <Ocupacion>Conductor</Ocupacion>
+  </Cliente>
+  <Cliente>
+    <Documento>300 000 002</Documento>
+    <Nombre>Sanfilippo Jose</Nombre>
+    <Direccion>Almagro</Direccion>
+    <Ocupacion>Cajero</Ocupacion>
+  </Cliente>
+  <Cliente>
+    <Documento>300 000 003</Documento>
+    <Nombre>Pipi Romagnoli</Nombre>
+    <Direccion>Boedo</Direccion>
+    <Ocupacion>Repositor</Ocupacion>
+  </Cliente>
+  <Cliente>
+    <Documento>300 000 004</Documento>
+    <Nombre>Ruben Insua</Nombre>
+    <Direccion>Flores</Direccion>
+    <Ocupacion>Responsable At. al cliente</Ocupacion>
+  </Cliente>
+</Clientes>
